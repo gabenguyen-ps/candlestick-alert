@@ -11,16 +11,16 @@ const W = 760;
 const H = 380;
 const PAD = { top: 16, right: 54, bottom: 34, left: 8 };
 
-const GREEN = "#26a96a";
-const RED = "#d95757";
-const GRID = "#2a3550";
-const TEXT = "#8a97b3";
+const GREEN = "#16a34a";
+const RED = "#dc2626";
+const GRID = "#e5e7eb";
+const TEXT = "#6b7280";
 
 // Highlight band styling per pattern bias.
 const BAND = {
-  bullish: { fill: "rgba(38,169,106,0.15)", stroke: GREEN },
-  bearish: { fill: "rgba(217,87,87,0.15)", stroke: RED },
-  neutral: { fill: "rgba(224,180,72,0.16)", stroke: "#e0b448" },
+  bullish: { fill: "rgba(22,163,74,0.12)", stroke: GREEN },
+  bearish: { fill: "rgba(220,38,38,0.10)", stroke: RED },
+  neutral: { fill: "rgba(180,83,9,0.14)", stroke: "#b45309" },
 };
 
 function svgEl(tag, attrs) {
