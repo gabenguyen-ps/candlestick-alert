@@ -23,11 +23,11 @@ import { renderCandlestickChart } from "./ui/chart.js";
 
 const PAGE_SIZE = 25;
 const AUTO_SCAN_MS = 60000; // auto-scan the visible page every minute
-const LIVE_PACING_MS = 8000; // spacing between live requests (free tier ~8/min)
+const LIVE_PACING_MS = 8000; // spacing between Twelve Data requests (free tier ~8/min)
 
 const STORAGE_KEYS = {
   apiKey: "cba.apiKey",
-  demo: "cba.demoMode",
+  dataSource: "cba.dataSource", // "demo" | "twelvedata"
   scanTf: "cba.scanTimeframe", // which timeframe patterns are detected on
   view: "cba.view", // "all" | "mine"
   watchlist: "cba.watchlist", // symbols the user pinned to My Watchlist
@@ -49,7 +49,7 @@ const ALL_FILTER_NAMES = [...PATTERNS.map((p) => p.name), "none"];
 // ---- DOM references ------------------------------------------------------
 const els = {
   scanTimeframe: document.getElementById("scan-timeframe"),
-  demoToggle: document.getElementById("demo-toggle"),
+  dataSource: document.getElementById("data-source"),
   apiRow: document.getElementById("api-row"),
   apiKey: document.getElementById("apikey"),
   status: document.getElementById("status"),
@@ -96,6 +96,8 @@ const els = {
 };
 
 let scanning = false;
+let rescanQueued = false; // a scan was requested while one was running
+let scanGen = 0; // bumped to supersede an in-progress scan
 let query = "";
 let page = 0;
 let view = "all"; // "all" | "mine"
@@ -207,8 +209,11 @@ function pageItems() {
 }
 
 // ---- Provider selection --------------------------------------------------
+function dataSource() {
+  return els.dataSource.value || "demo"; // "demo" | "twelvedata"
+}
 function isDemoMode() {
-  return els.demoToggle.checked;
+  return dataSource() === "demo";
 }
 
 function scanTimeframe() {
@@ -216,13 +221,15 @@ function scanTimeframe() {
   return TIMEFRAMES[tf] ? tf : DEFAULT_TIMEFRAME; // fall back if stale/invalid
 }
 
-// Returns a function (symbol) -> Promise<Candle[]> for the current mode,
+// Returns a function (symbol) -> Promise<Candle[]> for the current data source,
 // detecting on the selected scan timeframe.
 function currentProvider() {
   const timeframe = scanTimeframe();
-  if (isDemoMode()) return (symbol) => fetchDemo(symbol, { timeframe });
-  const apiKey = els.apiKey.value.trim();
-  return (symbol) => fetchTwelveData(symbol, { timeframe, apiKey });
+  if (dataSource() === "twelvedata") {
+    const apiKey = els.apiKey.value.trim();
+    return (symbol) => fetchTwelveData(symbol, { timeframe, apiKey });
+  }
+  return (symbol) => fetchDemo(symbol, { timeframe });
 }
 
 // ---- Notifications -------------------------------------------------------
@@ -488,56 +495,70 @@ function updateRow(symbol, { close, pattern, score, error } = {}) {
 // ---- Scan orchestration --------------------------------------------------
 // Scans the currently visible page of tickers.
 async function scanVisible() {
-  if (scanning) return;
+  // If a scan is already running, supersede it and queue a fresh one instead of
+  // silently bailing (which left the table blank when switching data source).
+  if (scanning) {
+    rescanQueued = true;
+    scanGen++;
+    return;
+  }
 
-  const demo = isDemoMode();
-  if (!demo && !els.apiKey.value.trim()) {
-    setStatus("Live mode needs a Twelve Data API key. Add one or switch to demo mode.");
+  const src = dataSource();
+  if (src === "twelvedata" && !els.apiKey.value.trim()) {
+    setStatus("Twelve Data needs an API key. Add one, or switch data source.");
     return;
   }
 
   scanning = true;
-  const provider = currentProvider();
-  const items = pageItems();
-  const tfLabel = TIMEFRAMES[scanTimeframe()].label;
-  setStatus(`Scanning ${items.length} tickers on the ${tfLabel} timeframe (${demo ? "demo" : "live"} mode)…`);
-  let hits = 0;
-  let buy = 0;
-  let sell = 0;
+  const myGen = ++scanGen;
+  try {
+    const provider = currentProvider();
+    const items = pageItems();
+    const tfLabel = TIMEFRAMES[scanTimeframe()].label;
+    setStatus(`Scanning ${items.length} tickers on the ${tfLabel} timeframe (${src})…`);
+    let hits = 0;
+    let buy = 0;
+    let sell = 0;
 
-  for (const item of items) {
-    try {
-      const candles = await provider(item.symbol);
-      const latest = candles[0];
-      const pattern = detectPattern(candles);
-      const score = scorePattern(pattern, candles);
-      results[item.symbol] = { close: latest.close, pattern, score };
-      updateRow(item.symbol, results[item.symbol]);
+    for (const item of items) {
+      if (myGen !== scanGen) return; // a newer scan started — stop this one
+      try {
+        const candles = await provider(item.symbol);
+        const latest = candles[0];
+        const pattern = detectPattern(candles);
+        const score = scorePattern(pattern, candles);
+        results[item.symbol] = { close: latest.close, pattern, score };
+        updateRow(item.symbol, results[item.symbol]);
 
-      if (pattern && pattern.bias === "bullish") buy++;
-      else if (pattern && pattern.bias === "bearish") sell++;
+        if (pattern && pattern.bias === "bullish") buy++;
+        else if (pattern && pattern.bias === "bearish") sell++;
 
-      if (pattern && shouldNotify(item.symbol, pattern) && !alreadyNotified(item.symbol, latest.datetime, pattern.name)) {
-        alertFor(item.name, item.symbol, pattern, latest);
-        markNotified(item.symbol, latest.datetime, pattern.name);
-        hits++;
+        if (pattern && shouldNotify(item.symbol, pattern) && !alreadyNotified(item.symbol, latest.datetime, pattern.name)) {
+          alertFor(item.name, item.symbol, pattern, latest);
+          markNotified(item.symbol, latest.datetime, pattern.name);
+          hits++;
+        }
+      } catch (err) {
+        results[item.symbol] = { error: err.message };
+        updateRow(item.symbol, results[item.symbol]);
+        log(`⚠️ ${item.symbol}: ${err.message}`);
       }
-    } catch (err) {
-      results[item.symbol] = { error: err.message };
-      updateRow(item.symbol, results[item.symbol]);
-      log(`⚠️ ${item.symbol}: ${err.message}`);
+      if (src === "twelvedata") await sleep(LIVE_PACING_MS); // free tier ~8/min
     }
-    if (!demo) await sleep(LIVE_PACING_MS); // pace the free API tier
+
+    // A concise summary so the log always shows activity — de-duped so a static
+    // (unchanged) scan doesn't repeat the same line every minute.
+    const summary = `${tfLabel}: ${buy} buy, ${sell} sell across ${items.length} tickers` +
+      (hits ? ` — ${hits} new alert(s)` : "");
+    if (logEntries[0]?.msg !== summary) log(summary);
+    setStatus(`Scan complete at ${new Date().toLocaleTimeString()} — ${hits} new signal(s) on this page.`);
+  } finally {
+    scanning = false;
+    if (rescanQueued) {
+      rescanQueued = false;
+      scanVisible(); // run the queued (latest) scan
+    }
   }
-
-  // A concise summary so the log always shows activity — de-duped so a static
-  // (unchanged) scan doesn't repeat the same line every minute.
-  const summary = `${tfLabel}: ${buy} buy, ${sell} sell across ${items.length} tickers` +
-    (hits ? ` — ${hits} new alert(s)` : "");
-  if (logEntries[0]?.msg !== summary) log(summary);
-
-  setStatus(`Scan complete at ${new Date().toLocaleTimeString()} — ${hits} new signal(s) on this page.`);
-  scanning = false;
 }
 
 // Re-render the current page and scan it (used after paging/search/timeframe changes).
@@ -548,9 +569,11 @@ function refreshAndScan() {
 
 // ---- Chart modal ---------------------------------------------------------
 function currentSeriesProvider() {
-  if (isDemoMode()) return (symbol, timeframe) => fetchDemoSeries(symbol, { timeframe });
-  const apiKey = els.apiKey.value.trim();
-  return (symbol, timeframe) => fetchTwelveSeries(symbol, { timeframe, apiKey });
+  if (dataSource() === "twelvedata") {
+    const apiKey = els.apiKey.value.trim();
+    return (symbol, timeframe) => fetchTwelveSeries(symbol, { timeframe, apiKey });
+  }
+  return (symbol, timeframe) => fetchDemoSeries(symbol, { timeframe });
 }
 
 function buildTimeframeButtons() {
@@ -654,13 +677,13 @@ function updateDiscordReveal() {
 }
 
 // ---- Settings ------------------------------------------------------------
-function applyDemoVisibility() {
-  els.apiRow.classList.toggle("hidden", isDemoMode());
+function applySourceVisibility() {
+  els.apiRow.classList.toggle("hidden", dataSource() !== "twelvedata"); // key only for Twelve Data
 }
 
 function loadSettings() {
   els.apiKey.value = store.get(STORAGE_KEYS.apiKey, "");
-  els.demoToggle.checked = store.get(STORAGE_KEYS.demo, "true") === "true";
+  els.dataSource.value = store.get(STORAGE_KEYS.dataSource, "demo");
   const storedTf = store.get(STORAGE_KEYS.scanTf, DEFAULT_TIMEFRAME);
   els.scanTimeframe.value = TIMEFRAMES[storedTf] ? storedTf : DEFAULT_TIMEFRAME;
   els.notifyBrowser.checked = store.get(STORAGE_KEYS.notifyBrowser, "true") === "true";
@@ -681,7 +704,7 @@ function loadSettings() {
     : [];
   enabledFilters = validFilters.length ? new Set(validFilters) : new Set(ALL_FILTER_NAMES);
   view = store.get(STORAGE_KEYS.view, "all");
-  applyDemoVisibility();
+  applySourceVisibility();
 }
 
 // ---- Event listeners -----------------------------------------------------
@@ -835,10 +858,10 @@ document.addEventListener("keydown", (e) => {
   if (!els.settingsModal.classList.contains("hidden")) closeSettings();
 });
 
-els.demoToggle.addEventListener("change", () => {
-  store.set(STORAGE_KEYS.demo, els.demoToggle.checked);
-  applyDemoVisibility();
-  for (const key of Object.keys(results)) delete results[key]; // results are mode-specific
+els.dataSource.addEventListener("change", () => {
+  store.set(STORAGE_KEYS.dataSource, els.dataSource.value);
+  applySourceVisibility();
+  for (const key of Object.keys(results)) delete results[key]; // results are source-specific
   refreshAndScan();
 });
 

@@ -17,19 +17,20 @@
 
   <section class="controls">
     <div class="control-row">
-      <label class="toggle">
-        <input type="checkbox" id="demo-toggle" checked />
-        <span>Demo mode (fake data, no API key needed)</span>
-      </label>
+      <label for="data-source">Data source:</label>
+      <select id="data-source">
+        <option value="demo">Demo — fake data, no key</option>
+        <option value="twelvedata">Twelve Data — free key</option>
+      </select>
     </div>
 
-    <div class="control-row api-row" id="api-row">
+    <div class="control-row api-row hidden" id="api-row">
       <label for="apikey">Twelve Data API key:</label>
       <input type="password" id="apikey" placeholder="paste your free API key" autocomplete="off" />
       <a href="https://twelvedata.com/pricing" target="_blank" rel="noopener">Get a free key →</a>
     </div>
 
-    <p class="status" id="status">Ready. Demo mode is on — press “Scan now” to try it.</p>
+    <p class="status" id="status">Ready. Demo mode is on — press scan or wait for auto-scan.</p>
   </section>
 
   <section>
