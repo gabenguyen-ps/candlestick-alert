@@ -100,7 +100,7 @@
           <div class="setting-block">
             <label class="setting-row">
               <input type="checkbox" id="notify-discord" />
-              <span>Discord</span>
+              <span>Discord <span class="soon" id="notify-discord-badge">off</span></span>
             </label>
             <div class="channel-config hidden" id="discord-config">
               <input class="setting-input" type="text" id="discord-webhook" placeholder="Discord webhook URL" autocomplete="off" />
@@ -151,7 +151,6 @@
         <summary>Signal filters</summary>
         <div class="cat-body">
           <div class="filter-actions">
-            <span class="settings-note">Show only the signals you check.</span>
             <span class="filter-buttons">
               <button id="select-all-filters" class="btn">Select all</button>
               <button id="deselect-all-filters" class="btn">Deselect all</button>

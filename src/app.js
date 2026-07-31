@@ -70,6 +70,7 @@ const els = {
   notifyBrowser: document.getElementById("notify-browser"),
   notifyBrowserBadge: document.getElementById("notify-browser-badge"),
   notifyDiscord: document.getElementById("notify-discord"),
+  notifyDiscordBadge: document.getElementById("notify-discord-badge"),
   discordConfig: document.getElementById("discord-config"),
   discordWebhook: document.getElementById("discord-webhook"),
   discordTest: document.getElementById("discord-test"),
@@ -279,9 +280,9 @@ function buildSignalFilters() {
   for (const bias of ["bullish", "bearish", "neutral"]) {
     html += `<div class="filter-group"><div class="filter-group-title">${labels[bias]}</div>`;
     html += groups[bias].map((n) => filterCheckbox(n)).join("");
+    if (bias === "neutral") html += filterCheckbox("none", "No signal"); // roll "No signal" into Neutral
     html += `</div>`;
   }
-  html += `<div class="filter-group"><div class="filter-group-title">Other</div>${filterCheckbox("none", "No signal")}</div>`;
   els.filterList.innerHTML = html;
 }
 
@@ -643,9 +644,13 @@ function updateBrowserBadge() {
   els.notifyBrowserBadge.classList.toggle("on", on);
 }
 
-// Show the Discord webhook field only when the Discord box is checked.
+// Show the Discord webhook field only when the Discord box is checked, and keep
+// its on/off badge in sync (matching the Web browser badge).
 function updateDiscordReveal() {
-  els.discordConfig.classList.toggle("hidden", !els.notifyDiscord.checked);
+  const on = els.notifyDiscord.checked;
+  els.discordConfig.classList.toggle("hidden", !on);
+  els.notifyDiscordBadge.textContent = on ? "on" : "off";
+  els.notifyDiscordBadge.classList.toggle("on", on);
 }
 
 // ---- Settings ------------------------------------------------------------
