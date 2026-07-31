@@ -40,6 +40,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true # turn on GitHub Pages automatically if it isn't already
       - uses: actions/upload-pages-artifact@v3
         with:
           path: . # the whole repo is the static site (index.html is at the root)
