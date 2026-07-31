@@ -34,7 +34,9 @@ const STORAGE_KEYS = {
   notifyBrowser: "cba.notifyBrowser", // browser notifications on/off
   notifyDiscord: "cba.notifyDiscord", // discord notifications on/off
   discordWebhook: "cba.discordWebhook", // discord webhook URL (secret, browser-only)
-  notifyWatchlistOnly: "cba.notifyWatchlistOnly", // only alert on My Watchlist tickers
+  notifyWatchlist: "cba.notifyWatchlist", // alert on My Watchlist tickers (additive)
+  watchlistTf: "cba.watchlistTf", // timeframe for the watchlist alert ("any" or a key)
+  notifySpecific: "cba.notifySpecific", // alert on specific pattern rules
   notifyRules: "cba.notifyRules", // [{ pattern, timeframe }] alert rules
   filters: "cba.filters", // enabled signal-filter names
   notified: "cba.notified", // { "AAPL": { date, pattern }, ... } last alert per symbol
@@ -72,7 +74,11 @@ const els = {
   discordWebhook: document.getElementById("discord-webhook"),
   discordTest: document.getElementById("discord-test"),
   discordTestResult: document.getElementById("discord-test-result"),
-  notifyWatchlistOnly: document.getElementById("notify-watchlist-only"),
+  notifyWatchlist: document.getElementById("notify-watchlist"),
+  watchlistConfig: document.getElementById("watchlist-config"),
+  watchlistTf: document.getElementById("watchlist-tf"),
+  notifySpecific: document.getElementById("notify-specific"),
+  specificConfig: document.getElementById("specific-config"),
   rulesList: document.getElementById("rules-list"),
   addRule: document.getElementById("add-rule"),
   clearRules: document.getElementById("clear-rules"),
@@ -228,17 +234,30 @@ function alertFor(company, symbol, pattern, candle) {
   log(`${title} — ${body}`, true); // always logged, regardless of channels
 }
 
-// Whether a detected signal should fire a notification, per the user's rules.
-// (Separate from the table's signal filters, which only affect what's displayed.)
+// Whether a detected signal should fire a notification. Two independent, additive
+// triggers: My Watchlist (any pattern, chosen timeframe) and specific pattern
+// rules (any ticker). A signal alerts if it matches EITHER. If neither trigger is
+// enabled, alert on everything. (Separate from the table's signal filters.)
 function shouldNotify(symbol, pattern) {
-  if (els.notifyWatchlistOnly.checked && !myWatchlist.has(symbol)) return false;
-  if (notifyRules.length === 0) return true; // no rules = alert on everything
+  const watchlistOn = els.notifyWatchlist.checked;
+  const specificOn = els.notifySpecific.checked;
+  if (!watchlistOn && !specificOn) return true; // default: alert on everything
+
   const tf = scanTimeframe();
-  return notifyRules.some(
-    (r) =>
-      (r.pattern === "any" || r.pattern === pattern.name) &&
-      (r.timeframe === "any" || r.timeframe === tf)
-  );
+
+  if (watchlistOn && myWatchlist.has(symbol)) {
+    const wtf = els.watchlistTf.value;
+    if (wtf === "any" || wtf === tf) return true;
+  }
+  if (specificOn) {
+    const matches = notifyRules.some(
+      (r) =>
+        (r.pattern === "any" || r.pattern === pattern.name) &&
+        (r.timeframe === "any" || r.timeframe === tf)
+    );
+    if (matches) return true;
+  }
+  return false;
 }
 
 // ---- Signal filters ------------------------------------------------------
@@ -291,9 +310,27 @@ function timeframeOptions() {
   return [{ value: "any", label: "Any timeframe" }, ...Object.entries(TIMEFRAMES).map(([k, tf]) => ({ value: k, label: tf.label }))];
 }
 
+function buildWatchlistTfOptions() {
+  els.watchlistTf.innerHTML = optionsHTML(timeframeOptions(), els.watchlistTf.value || "any");
+}
+
+// Reveal the timeframe dropdown / rules list when their box is checked.
+function updateWatchlistReveal() {
+  els.watchlistConfig.classList.toggle("hidden", !els.notifyWatchlist.checked);
+}
+function updateSpecificReveal() {
+  els.specificConfig.classList.toggle("hidden", !els.notifySpecific.checked);
+  // On first enable, show one starter rule row.
+  if (els.notifySpecific.checked && notifyRules.length === 0) {
+    notifyRules.push({ pattern: "any", timeframe: "any" });
+    persistRules();
+    buildRulesList();
+  }
+}
+
 function buildRulesList() {
   if (notifyRules.length === 0) {
-    els.rulesList.innerHTML = `<p class="rules-empty">No rules — you'll be alerted about every signal.</p>`;
+    els.rulesList.innerHTML = `<p class="rules-empty">No rules — add one to target specific patterns.</p>`;
     return;
   }
   const patts = patternOptions();
@@ -624,7 +661,9 @@ function loadSettings() {
   els.notifyBrowser.checked = store.get(STORAGE_KEYS.notifyBrowser, "true") === "true";
   els.notifyDiscord.checked = store.get(STORAGE_KEYS.notifyDiscord, "false") === "true";
   els.discordWebhook.value = store.get(STORAGE_KEYS.discordWebhook, "");
-  els.notifyWatchlistOnly.checked = store.get(STORAGE_KEYS.notifyWatchlistOnly, "false") === "true";
+  els.notifyWatchlist.checked = store.get(STORAGE_KEYS.notifyWatchlist, "false") === "true";
+  els.notifySpecific.checked = store.get(STORAGE_KEYS.notifySpecific, "false") === "true";
+  els.watchlistTf.value = store.get(STORAGE_KEYS.watchlistTf, "any");
   const storedRules = store.getJSON(STORAGE_KEYS.notifyRules, []);
   notifyRules = Array.isArray(storedRules)
     ? storedRules.filter((r) => r && typeof r.pattern === "string" && typeof r.timeframe === "string")
@@ -747,9 +786,17 @@ els.filterList.addEventListener("change", (e) => {
 els.selectAllFilters.addEventListener("click", () => setAllFilters(true));
 els.deselectAllFilters.addEventListener("click", () => setAllFilters(false));
 
-// Notification rules
-els.notifyWatchlistOnly.addEventListener("change", () => {
-  store.set(STORAGE_KEYS.notifyWatchlistOnly, els.notifyWatchlistOnly.checked);
+// Notification alerts
+els.notifyWatchlist.addEventListener("change", () => {
+  store.set(STORAGE_KEYS.notifyWatchlist, els.notifyWatchlist.checked);
+  updateWatchlistReveal();
+});
+els.watchlistTf.addEventListener("change", () => {
+  store.set(STORAGE_KEYS.watchlistTf, els.watchlistTf.value);
+});
+els.notifySpecific.addEventListener("change", () => {
+  store.set(STORAGE_KEYS.notifySpecific, els.notifySpecific.checked);
+  updateSpecificReveal();
 });
 els.addRule.addEventListener("click", () => {
   notifyRules.push({ pattern: "any", timeframe: "any" });
@@ -807,12 +854,15 @@ window.addEventListener("error", (e) => setStatus(`Error: ${e.message}`));
 try {
   buildTimeframeButtons();
   buildScanTimeframeOptions();
+  buildWatchlistTfOptions();
   loadSettings();
   updateTabs();
   updateBrowserBadge();
   updateDiscordReveal();
   buildSignalFilters();
   buildRulesList();
+  updateWatchlistReveal();
+  updateSpecificReveal();
   renderRows();
   logEntries = store.getJSON(STORAGE_KEYS.log, []); // restore log across refreshes
   renderLog();

@@ -313,6 +313,15 @@ footer { max-width: 900px; margin: 2rem auto 0; color: var(--muted); font-size: 
 }
 .rule-delete:hover { border-color: var(--red); color: var(--red); }
 .rules-empty { color: var(--muted); font-size: 0.82rem; font-style: italic; margin: 0.2rem 0 0.5rem; }
+.rule-inline { display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; }
+.rule-inline select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.82rem;
+}
 
 .hidden { display: none; }
 .settings-subhead { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; margin: 0.9rem 0 0.35rem; }

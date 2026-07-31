@@ -121,18 +121,29 @@
             <span>Email <span class="soon">coming soon</span></span>
           </label>
 
-          <p class="settings-subhead">Alert rules</p>
+          <p class="settings-subhead">Alerts</p>
+          <p class="settings-note">Pick what to be alerted about. If neither is checked, you're alerted on everything.</p>
+
           <label class="setting-row">
-            <input type="checkbox" id="notify-watchlist-only" />
-            <span>Only notify me about My Watchlist tickers</span>
+            <input type="checkbox" id="notify-watchlist" />
+            <span>Notify My Watchlist tickers</span>
           </label>
-          <p class="settings-note">Alert me when any of these pattern + timeframe combos appear. No rules = alert on everything.</p>
-          <div id="rules-list"><!-- rule rows injected by app.js --></div>
-          <div class="filter-actions">
-            <span class="filter-buttons">
-              <button id="add-rule" class="btn">+ Add rule</button>
-              <button id="clear-rules" class="btn">Clear all</button>
-            </span>
+          <div class="channel-config hidden" id="watchlist-config">
+            <label class="rule-inline">On timeframe: <select id="watchlist-tf"></select></label>
+          </div>
+
+          <label class="setting-row">
+            <input type="checkbox" id="notify-specific" />
+            <span>Alert for specific patterns</span>
+          </label>
+          <div class="channel-config hidden" id="specific-config">
+            <div id="rules-list"><!-- rule rows injected by app.js --></div>
+            <div class="filter-actions">
+              <span class="filter-buttons">
+                <button id="add-rule" class="btn">+ Add rule</button>
+                <button id="clear-rules" class="btn">Clear all</button>
+              </span>
+            </div>
           </div>
         </div>
       </details>
