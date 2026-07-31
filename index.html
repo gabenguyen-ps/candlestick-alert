@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Keep the app out of search-engine results (still reachable by direct link). -->
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Candlestick Alert — S&P 500</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <button id="settings-btn" class="icon-btn" title="Settings" aria-label="Settings">⚙️</button>
+    <h1>🕯️ Candlestick Alert</h1>
+    <p class="subtitle">Scanning the S&P 500 for reversal patterns — auto-refreshing.</p>
+  </header>
+
+  <section class="controls">
+    <div class="control-row">
+      <label class="toggle">
+        <input type="checkbox" id="demo-toggle" checked />
+        <span>Demo mode (fake data, no API key needed)</span>
+      </label>
+    </div>
+
+    <div class="control-row api-row" id="api-row">
+      <label for="apikey">Twelve Data API key:</label>
+      <input type="password" id="apikey" placeholder="paste your free API key" autocomplete="off" />
+      <a href="https://twelvedata.com/pricing" target="_blank" rel="noopener">Get a free key →</a>
+    </div>
+
+    <p class="status" id="status">Ready. Demo mode is on — press “Scan now” to try it.</p>
+  </section>
+
+  <section>
+    <div class="tabs" id="view-tabs">
+      <button class="tab active" data-view="all">All</button>
+      <button class="tab" data-view="mine">My Watchlist (<span id="mine-count">0</span>)</button>
+    </div>
+
+    <div class="table-toolbar">
+      <input type="search" id="search" placeholder="Filter by ticker or company…" autocomplete="off" />
+      <span class="results-count" id="results-count"></span>
+      <label for="scan-timeframe" class="tf-label" title="Signals auto-scan on this timeframe every minute">Detect patterns on:</label>
+      <select id="scan-timeframe"><!-- options injected by app.js --></select>
+    </div>
+
+    <table id="watchlist">
+      <thead>
+        <tr>
+          <th class="col-fav" aria-label="Watchlist"></th>
+          <th>Company</th>
+          <th>Ticker</th>
+          <th>Last close</th>
+          <th>Signal</th>
+          <th>Strength</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody><!-- rows injected by app.js --></tbody>
+    </table>
+
+    <div class="pagination">
+      <button id="prev-page" class="btn">← Prev</button>
+      <span id="page-info">Page 1</span>
+      <button id="next-page" class="btn">Next →</button>
+    </div>
+  </section>
+
+  <section class="log-section">
+    <div class="log-header">
+      <h2>Activity log</h2>
+      <button id="log-toggle" class="btn hidden">Show more</button>
+    </div>
+    <ul id="log"></ul>
+  </section>
+
+  <footer>
+    <p>Educational tool — not financial advice. Data may be delayed.</p>
+  </footer>
+
+  <div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-panel settings-panel">
+      <div class="modal-header">
+        <h2 id="settings-title">Settings</h2>
+        <button id="settings-close" class="btn" aria-label="Close settings">✕</button>
+      </div>
+
+      <details class="settings-cat">
+        <summary>Notifications</summary>
+        <div class="cat-body">
+          <label class="setting-row">
+            <input type="checkbox" id="notify-browser" />
+            <span>Web browser <span class="soon on" id="notify-browser-badge">on</span></span>
+          </label>
+
+          <div class="setting-block">
+            <label class="setting-row muted">
+              <input type="checkbox" disabled />
+              <span>Slack <span class="soon">coming soon</span></span>
+            </label>
+            <input class="setting-input" type="text" placeholder="Slack webhook URL" disabled />
+          </div>
+
+          <div class="setting-block">
+            <label class="setting-row muted">
+              <input type="checkbox" disabled />
+              <span>Discord <span class="soon">coming soon</span></span>
+            </label>
+            <input class="setting-input" type="text" placeholder="Discord webhook URL" disabled />
+          </div>
+
+          <div class="setting-block">
+            <label class="setting-row muted">
+              <input type="checkbox" disabled />
+              <span>Email <span class="soon">coming soon</span></span>
+            </label>
+            <input class="setting-input" type="email" placeholder="you@example.com" disabled />
+          </div>
+        </div>
+      </details>
+
+      <details class="settings-cat">
+        <summary>Signal filters</summary>
+        <div class="cat-body">
+          <div class="filter-actions">
+            <span class="settings-note">Show only the signals you check.</span>
+            <span class="filter-buttons">
+              <button id="select-all-filters" class="btn">Select all</button>
+              <button id="deselect-all-filters" class="btn">Deselect all</button>
+            </span>
+          </div>
+          <div id="filter-list"><!-- checkboxes injected by app.js --></div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div id="chart-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="chart-title">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h2 id="chart-title">—</h2>
+        <button id="chart-close" class="btn" aria-label="Close chart">✕</button>
+      </div>
+      <div class="timeframe-row" id="timeframe-row"><!-- buttons injected by app.js --></div>
+      <div id="chart-container" class="chart-container"></div>
+      <p id="chart-caption" class="chart-caption"></p>
+    </div>
+  </div>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

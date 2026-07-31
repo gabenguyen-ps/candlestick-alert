@@ -1,0 +1,11 @@
+{
+  "name": "candlestick-alert",
+  "version": "0.1.0",
+  "description": "Candlestick pattern alerts for the S&P 500 top 10",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "serve": "python3 -m http.server 8000"
+  }
+}
