@@ -34,6 +34,8 @@ const STORAGE_KEYS = {
   notifyBrowser: "cba.notifyBrowser", // browser notifications on/off
   notifyDiscord: "cba.notifyDiscord", // discord notifications on/off
   discordWebhook: "cba.discordWebhook", // discord webhook URL (secret, browser-only)
+  notifyWatchlistOnly: "cba.notifyWatchlistOnly", // only alert on My Watchlist tickers
+  notifyRules: "cba.notifyRules", // [{ pattern, timeframe }] alert rules
   filters: "cba.filters", // enabled signal-filter names
   notified: "cba.notified", // { "AAPL": { date, pattern }, ... } last alert per symbol
   log: "cba.log", // persisted activity log entries
@@ -66,9 +68,14 @@ const els = {
   notifyBrowser: document.getElementById("notify-browser"),
   notifyBrowserBadge: document.getElementById("notify-browser-badge"),
   notifyDiscord: document.getElementById("notify-discord"),
+  discordConfig: document.getElementById("discord-config"),
   discordWebhook: document.getElementById("discord-webhook"),
   discordTest: document.getElementById("discord-test"),
   discordTestResult: document.getElementById("discord-test-result"),
+  notifyWatchlistOnly: document.getElementById("notify-watchlist-only"),
+  rulesList: document.getElementById("rules-list"),
+  addRule: document.getElementById("add-rule"),
+  clearRules: document.getElementById("clear-rules"),
   filterList: document.getElementById("filter-list"),
   selectAllFilters: document.getElementById("select-all-filters"),
   deselectAllFilters: document.getElementById("deselect-all-filters"),
@@ -87,6 +94,7 @@ let page = 0;
 let view = "all"; // "all" | "mine"
 let myWatchlist = new Set(); // symbols pinned to My Watchlist
 let enabledFilters = new Set(ALL_FILTER_NAMES); // signal types shown in the table
+let notifyRules = []; // [{ pattern, timeframe }] — a signal alerts if it matches any rule
 const results = {}; // symbol -> { close, pattern, score } | { error } (current timeframe)
 
 // Which symbol the chart modal is currently showing.
@@ -220,6 +228,19 @@ function alertFor(company, symbol, pattern, candle) {
   log(`${title} — ${body}`, true); // always logged, regardless of channels
 }
 
+// Whether a detected signal should fire a notification, per the user's rules.
+// (Separate from the table's signal filters, which only affect what's displayed.)
+function shouldNotify(symbol, pattern) {
+  if (els.notifyWatchlistOnly.checked && !myWatchlist.has(symbol)) return false;
+  if (notifyRules.length === 0) return true; // no rules = alert on everything
+  const tf = scanTimeframe();
+  return notifyRules.some(
+    (r) =>
+      (r.pattern === "any" || r.pattern === pattern.name) &&
+      (r.timeframe === "any" || r.timeframe === tf)
+  );
+}
+
 // ---- Signal filters ------------------------------------------------------
 function persistFilters() {
   store.setJSON(STORAGE_KEYS.filters, [...enabledFilters]);
@@ -251,6 +272,42 @@ function setAllFilters(on) {
   buildSignalFilters();
   page = 0;
   refreshAndScan();
+}
+
+// ---- Notification rules --------------------------------------------------
+function persistRules() {
+  store.setJSON(STORAGE_KEYS.notifyRules, notifyRules);
+}
+
+function optionsHTML(items, selected) {
+  return items
+    .map((it) => `<option value="${it.value}"${it.value === selected ? " selected" : ""}>${it.label}</option>`)
+    .join("");
+}
+function patternOptions() {
+  return [{ value: "any", label: "Any pattern" }, ...PATTERNS.map((p) => ({ value: p.name, label: p.name }))];
+}
+function timeframeOptions() {
+  return [{ value: "any", label: "Any timeframe" }, ...Object.entries(TIMEFRAMES).map(([k, tf]) => ({ value: k, label: tf.label }))];
+}
+
+function buildRulesList() {
+  if (notifyRules.length === 0) {
+    els.rulesList.innerHTML = `<p class="rules-empty">No rules — you'll be alerted about every signal.</p>`;
+    return;
+  }
+  const patts = patternOptions();
+  const tfs = timeframeOptions();
+  els.rulesList.innerHTML = notifyRules
+    .map(
+      (r, i) => `
+      <div class="rule-row" data-index="${i}">
+        <select class="rule-pattern">${optionsHTML(patts, r.pattern)}</select>
+        <select class="rule-timeframe">${optionsHTML(tfs, r.timeframe)}</select>
+        <button class="rule-delete" title="Delete this rule" aria-label="Delete rule">✕</button>
+      </div>`
+    )
+    .join("");
 }
 
 // De-dupe: only alert once per symbol per (candle date + pattern).
@@ -422,7 +479,7 @@ async function scanVisible() {
       if (pattern && pattern.bias === "bullish") buy++;
       else if (pattern && pattern.bias === "bearish") sell++;
 
-      if (pattern && !alreadyNotified(item.symbol, latest.datetime, pattern.name)) {
+      if (pattern && shouldNotify(item.symbol, pattern) && !alreadyNotified(item.symbol, latest.datetime, pattern.name)) {
         alertFor(item.name, item.symbol, pattern, latest);
         markNotified(item.symbol, latest.datetime, pattern.name);
         hits++;
@@ -549,6 +606,11 @@ function updateBrowserBadge() {
   els.notifyBrowserBadge.classList.toggle("on", on);
 }
 
+// Show the Discord webhook field only when the Discord box is checked.
+function updateDiscordReveal() {
+  els.discordConfig.classList.toggle("hidden", !els.notifyDiscord.checked);
+}
+
 // ---- Settings ------------------------------------------------------------
 function applyDemoVisibility() {
   els.apiRow.classList.toggle("hidden", isDemoMode());
@@ -562,6 +624,11 @@ function loadSettings() {
   els.notifyBrowser.checked = store.get(STORAGE_KEYS.notifyBrowser, "true") === "true";
   els.notifyDiscord.checked = store.get(STORAGE_KEYS.notifyDiscord, "false") === "true";
   els.discordWebhook.value = store.get(STORAGE_KEYS.discordWebhook, "");
+  els.notifyWatchlistOnly.checked = store.get(STORAGE_KEYS.notifyWatchlistOnly, "false") === "true";
+  const storedRules = store.getJSON(STORAGE_KEYS.notifyRules, []);
+  notifyRules = Array.isArray(storedRules)
+    ? storedRules.filter((r) => r && typeof r.pattern === "string" && typeof r.timeframe === "string")
+    : [];
   myWatchlist = new Set(store.getJSON(STORAGE_KEYS.watchlist, []));
   // Load filters, dropping any stale names; fall back to "all" if nothing valid.
   const storedFilters = store.getJSON(STORAGE_KEYS.filters, null);
@@ -637,6 +704,7 @@ els.notifyBrowser.addEventListener("change", () => {
 
 els.notifyDiscord.addEventListener("change", () => {
   store.set(STORAGE_KEYS.notifyDiscord, els.notifyDiscord.checked);
+  updateDiscordReveal();
 });
 els.discordWebhook.addEventListener("change", () => {
   store.set(STORAGE_KEYS.discordWebhook, els.discordWebhook.value.trim());
@@ -679,6 +747,36 @@ els.filterList.addEventListener("change", (e) => {
 els.selectAllFilters.addEventListener("click", () => setAllFilters(true));
 els.deselectAllFilters.addEventListener("click", () => setAllFilters(false));
 
+// Notification rules
+els.notifyWatchlistOnly.addEventListener("change", () => {
+  store.set(STORAGE_KEYS.notifyWatchlistOnly, els.notifyWatchlistOnly.checked);
+});
+els.addRule.addEventListener("click", () => {
+  notifyRules.push({ pattern: "any", timeframe: "any" });
+  persistRules();
+  buildRulesList();
+});
+els.clearRules.addEventListener("click", () => {
+  notifyRules = [];
+  persistRules();
+  buildRulesList();
+});
+els.rulesList.addEventListener("change", (e) => {
+  const row = e.target.closest(".rule-row");
+  if (!row) return;
+  const i = Number(row.dataset.index);
+  if (e.target.classList.contains("rule-pattern")) notifyRules[i].pattern = e.target.value;
+  if (e.target.classList.contains("rule-timeframe")) notifyRules[i].timeframe = e.target.value;
+  persistRules();
+});
+els.rulesList.addEventListener("click", (e) => {
+  if (!e.target.classList.contains("rule-delete")) return;
+  const i = Number(e.target.closest(".rule-row").dataset.index);
+  notifyRules.splice(i, 1);
+  persistRules();
+  buildRulesList();
+});
+
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   if (!els.modal.classList.contains("hidden")) closeChart();
@@ -712,7 +810,9 @@ try {
   loadSettings();
   updateTabs();
   updateBrowserBadge();
+  updateDiscordReveal();
   buildSignalFilters();
+  buildRulesList();
   renderRows();
   logEntries = store.getJSON(STORAGE_KEYS.log, []); // restore log across refreshes
   renderLog();
