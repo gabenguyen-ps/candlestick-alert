@@ -304,9 +304,15 @@ footer { max-width: 900px; margin: 2rem auto 0; color: var(--muted); font-size: 
   font-size: 0.85rem;
 }
 .setting-input:disabled { opacity: 0.5; }
+.setting-actions { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 0.3rem 1.6rem; }
+.setting-actions .btn { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
+.setting-actions a { color: var(--accent); text-decoration: none; font-size: 0.8rem; }
 .soon { font-size: 0.72rem; padding: 0.05rem 0.4rem; border-radius: 999px; background: rgba(107,114,128,0.12); color: var(--muted); }
 .soon.on { background: rgba(22,163,74,0.12); color: var(--green); }
 .settings-note { color: var(--muted); font-size: 0.8rem; margin: 0.5rem 0 0; }
+.test-result { font-size: 0.82rem; margin: 0.1rem 0 0 1.6rem; min-height: 1em; }
+.test-result.ok { color: var(--green); }
+.test-result.err { color: var(--red); }
 
 .chart-container { position: relative; min-height: 300px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem; }
 .chart-caption { color: var(--muted); font-size: 0.85rem; margin: 0.6rem 0 0; }

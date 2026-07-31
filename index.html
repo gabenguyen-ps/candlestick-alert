@@ -104,11 +104,16 @@
           </div>
 
           <div class="setting-block">
-            <label class="setting-row muted">
-              <input type="checkbox" disabled />
-              <span>Discord <span class="soon">coming soon</span></span>
+            <label class="setting-row">
+              <input type="checkbox" id="notify-discord" />
+              <span>Discord</span>
             </label>
-            <input class="setting-input" type="text" placeholder="Discord webhook URL" disabled />
+            <input class="setting-input" type="text" id="discord-webhook" placeholder="Discord webhook URL" autocomplete="off" />
+            <div class="setting-actions">
+              <button id="discord-test" class="btn">Send test message</button>
+              <a href="https://support.discord.com/hc/en-us/articles/228383668" target="_blank" rel="noopener">How to get a webhook →</a>
+            </div>
+            <p id="discord-test-result" class="test-result"></p>
           </div>
 
           <div class="setting-block">

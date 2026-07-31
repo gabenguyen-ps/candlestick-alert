@@ -18,6 +18,7 @@ import { formatAlert } from "./core/alert.js";
 import { fetchCandles as fetchDemo, fetchSeries as fetchDemoSeries, demoHighlight, demoPattern } from "./providers/demo.js";
 import { fetchCandles as fetchTwelveData, fetchSeries as fetchTwelveSeries } from "./providers/twelvedata.js";
 import * as browserNotifier from "./notifiers/browser.js";
+import * as discordNotifier from "./notifiers/discord.js";
 import { renderCandlestickChart } from "./ui/chart.js";
 
 const PAGE_SIZE = 25;
@@ -31,6 +32,8 @@ const STORAGE_KEYS = {
   view: "cba.view", // "all" | "mine"
   watchlist: "cba.watchlist", // symbols the user pinned to My Watchlist
   notifyBrowser: "cba.notifyBrowser", // browser notifications on/off
+  notifyDiscord: "cba.notifyDiscord", // discord notifications on/off
+  discordWebhook: "cba.discordWebhook", // discord webhook URL (secret, browser-only)
   filters: "cba.filters", // enabled signal-filter names
   notified: "cba.notified", // { "AAPL": { date, pattern }, ... } last alert per symbol
   log: "cba.log", // persisted activity log entries
@@ -62,6 +65,10 @@ const els = {
   settingsClose: document.getElementById("settings-close"),
   notifyBrowser: document.getElementById("notify-browser"),
   notifyBrowserBadge: document.getElementById("notify-browser-badge"),
+  notifyDiscord: document.getElementById("notify-discord"),
+  discordWebhook: document.getElementById("discord-webhook"),
+  discordTest: document.getElementById("discord-test"),
+  discordTestResult: document.getElementById("discord-test-result"),
   filterList: document.getElementById("filter-list"),
   selectAllFilters: document.getElementById("select-all-filters"),
   deselectAllFilters: document.getElementById("deselect-all-filters"),
@@ -207,7 +214,10 @@ function currentProvider() {
 function alertFor(company, symbol, pattern, candle) {
   const { title, body } = formatAlert(company, symbol, pattern, candle);
   if (els.notifyBrowser.checked) browserNotifier.sendNotification({ title, body });
-  log(`${title} — ${body}`, true); // always logged, even if browser notifications are off
+  if (els.notifyDiscord.checked && els.discordWebhook.value.trim()) {
+    discordNotifier.sendNotification({ title, body }, els.discordWebhook.value.trim()); // fire-and-forget
+  }
+  log(`${title} — ${body}`, true); // always logged, regardless of channels
 }
 
 // ---- Signal filters ------------------------------------------------------
@@ -550,6 +560,8 @@ function loadSettings() {
   const storedTf = store.get(STORAGE_KEYS.scanTf, DEFAULT_TIMEFRAME);
   els.scanTimeframe.value = TIMEFRAMES[storedTf] ? storedTf : DEFAULT_TIMEFRAME;
   els.notifyBrowser.checked = store.get(STORAGE_KEYS.notifyBrowser, "true") === "true";
+  els.notifyDiscord.checked = store.get(STORAGE_KEYS.notifyDiscord, "false") === "true";
+  els.discordWebhook.value = store.get(STORAGE_KEYS.discordWebhook, "");
   myWatchlist = new Set(store.getJSON(STORAGE_KEYS.watchlist, []));
   // Load filters, dropping any stale names; fall back to "all" if nothing valid.
   const storedFilters = store.getJSON(STORAGE_KEYS.filters, null);
@@ -621,6 +633,37 @@ els.notifyBrowser.addEventListener("change", () => {
   store.set(STORAGE_KEYS.notifyBrowser, els.notifyBrowser.checked);
   if (els.notifyBrowser.checked) browserNotifier.requestPermission().catch(() => {});
   updateBrowserBadge();
+});
+
+els.notifyDiscord.addEventListener("change", () => {
+  store.set(STORAGE_KEYS.notifyDiscord, els.notifyDiscord.checked);
+});
+els.discordWebhook.addEventListener("change", () => {
+  store.set(STORAGE_KEYS.discordWebhook, els.discordWebhook.value.trim());
+});
+els.discordTest.addEventListener("click", async () => {
+  const out = els.discordTestResult;
+  const url = els.discordWebhook.value.trim();
+  if (!url) {
+    out.textContent = "Paste your Discord webhook URL first.";
+    out.className = "test-result err";
+    return;
+  }
+  store.set(STORAGE_KEYS.discordWebhook, url);
+  out.textContent = "Sending…";
+  out.className = "test-result";
+  const res = await discordNotifier.sendNotification(
+    { title: "🔔 Candlestick Alert connected", body: "This is a test message from your app." },
+    url
+  );
+  if (res.ok) {
+    out.textContent = "Sent ✓ — check your Discord channel.";
+    out.className = "test-result ok";
+  } else {
+    out.textContent = `Failed: ${res.detail}`;
+    out.className = "test-result err";
+    console.error("Discord test failed:", res.detail);
+  }
 });
 
 els.filterList.addEventListener("change", (e) => {
