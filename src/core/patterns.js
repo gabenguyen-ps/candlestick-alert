@@ -378,30 +378,30 @@ const STRENGTH = {
   // Doji and Spinning Top are neutral — no directional strength.
 };
 
-// Plain-language descriptions for tooltips.
+// Plain-language, one-line descriptions for the signal tooltips.
 const DESCRIPTIONS = {
-  "Morning Star": "Bullish reversal: a big down candle, a small indecision candle, then a strong up candle.",
-  "Evening Star": "Bearish reversal: a big up candle, a small indecision candle, then a strong down candle.",
-  "Three White Soldiers": "Bullish: three rising green candles showing steady buying pressure.",
-  "Three Black Crows": "Bearish: three falling red candles showing steady selling pressure.",
-  "Bullish Engulfing": "Bullish reversal: a green candle fully engulfs the prior red candle's body.",
-  "Bearish Engulfing": "Bearish reversal: a red candle fully engulfs the prior green candle's body.",
-  "Piercing Line": "Bullish reversal: a green candle closes back above the midpoint of the prior red candle.",
-  "Dark Cloud Cover": "Bearish reversal: a red candle closes back below the midpoint of the prior green candle.",
-  "Bullish Harami": "Bullish reversal: a small green candle sits inside the prior large red body (selling wanes).",
-  "Bearish Harami": "Bearish reversal: a small red candle sits inside the prior large green body (buying wanes).",
-  "Tweezer Bottom": "Bullish reversal: two candles share a low, marking a support floor.",
-  "Tweezer Top": "Bearish reversal: two candles share a high, marking a resistance ceiling.",
-  "Dragonfly Doji": "Bullish: open and close near the high with a long lower wick (buyers rejected the lows).",
-  "Gravestone Doji": "Bearish: open and close near the low with a long upper wick (sellers rejected the highs).",
-  Doji: "Indecision: open and close are nearly equal — neither side is in control.",
-  "Bullish Marubozu": "Bullish: a full green body with almost no wicks — buyers dominated all session.",
-  "Bearish Marubozu": "Bearish: a full red body with almost no wicks — sellers dominated all session.",
-  Hammer: "Bullish reversal: small body with a long lower wick after a decline (buyers stepped in).",
-  "Hanging Man": "Bearish reversal: small body with a long lower wick after a rally (buyers losing grip).",
-  "Inverted Hammer": "Bullish reversal: small body with a long upper wick after a decline.",
-  "Shooting Star": "Bearish reversal: small body with a long upper wick after a rally.",
-  "Spinning Top": "Indecision: a small body with wicks on both sides; the trend may be stalling.",
+  "Morning Star": "Downtrend may be ending — could be a good time to buy.",
+  "Evening Star": "Uptrend may be ending — could be a good time to sell.",
+  "Three White Soldiers": "Three strong up days in a row — buyers are in control.",
+  "Three Black Crows": "Three strong down days in a row — sellers are in control.",
+  "Bullish Engulfing": "A big up day wipes out the prior down day — buyers taking over.",
+  "Bearish Engulfing": "A big down day wipes out the prior up day — sellers taking over.",
+  "Piercing Line": "Price bounced back up strongly after a down day — a bullish sign.",
+  "Dark Cloud Cover": "Price dropped back down sharply after an up day — a bearish sign.",
+  "Bullish Harami": "Selling is losing steam after a drop — price may turn up.",
+  "Bearish Harami": "Buying is losing steam after a rally — price may turn down.",
+  "Tweezer Bottom": "Price hit the same low twice and held — it may bounce up.",
+  "Tweezer Top": "Price hit the same high twice and stalled — it may fall.",
+  "Dragonfly Doji": "Sellers pushed price down but buyers pushed it all the way back — bullish.",
+  "Gravestone Doji": "Buyers pushed price up but sellers pushed it all the way back — bearish.",
+  Doji: "Buyers and sellers are evenly matched — no clear direction.",
+  "Bullish Marubozu": "A strong all-green day — buyers dominated from open to close.",
+  "Bearish Marubozu": "A strong all-red day — sellers dominated from open to close.",
+  Hammer: "Price dropped then snapped back up — buyers stepped in (bullish).",
+  "Hanging Man": "After a rally, buyers are slipping — price may turn down.",
+  "Inverted Hammer": "After a drop, buyers are testing higher — price may turn up.",
+  "Shooting Star": "After a rally, sellers pushed price back down — price may fall.",
+  "Spinning Top": "A quiet, indecisive day — the trend may be pausing.",
 };
 
 export function describePattern(name) {
